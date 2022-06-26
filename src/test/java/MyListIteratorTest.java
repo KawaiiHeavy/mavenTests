@@ -1,6 +1,12 @@
 import models.MyList;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ArgumentConversionException;
+import org.junit.jupiter.params.converter.ArgumentConverter;
+import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -64,14 +70,30 @@ public class MyListIteratorTest {
         Assertions.assertThrows(UnsupportedOperationException.class, it::remove);
     }
 
-    @Test
-    public void testIterateAllElements() {
+    static class IntArrayConverter implements ArgumentConverter {
 
-        Integer[] mas = new Integer[]{1, 2, 3, 4, 5};
+        @Override
+        public Object convert(Object source, ParameterContext context)
+                throws ArgumentConversionException {
+            if (!(source instanceof String)) {
+                throw new IllegalArgumentException(
+                        "The argument should be a string: " + source);
+            }
+            try {
+                return Arrays.stream(((String) source).split(",")).mapToInt(Integer::parseInt).boxed().toArray(Integer[]::new);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new IllegalArgumentException("Failed to convert", e);
+            }
+        }
+    }
 
-        List<Integer> list = Arrays.asList(mas);
-        MyList<Integer> myList = new MyList<>(mas);
+    @ParameterizedTest
+    @CsvSource(value = {"1,1,1,1,1", "1,2,3,4,5"}, delimiterString = ";")
+    public void testIterateAllElements(@ConvertWith(IntArrayConverter.class) Integer[] input) {
 
+        List<Integer> list = Arrays.asList(input);
+        MyList<Integer> myList = new MyList<>(input);
 
         Iterator<Integer> iterator = list.iterator();
         Iterator<Integer> myIterator = myList.iterator();
@@ -79,7 +101,5 @@ public class MyListIteratorTest {
         while (myIterator.hasNext()) {
             Assertions.assertEquals(iterator.next(), myIterator.next());
         }
-
     }
-
 }
